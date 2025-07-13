@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Password Vault</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for Inter font and general body styling */
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to start to allow scrolling if content is long */
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Styling for the main container */
+        .vault-container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+
+        /* Styling for input fields */
+        input[type="password"],
+        input[type="text"] {
+            border: 1px solid #d1d5db;
+            padding: 10px 15px;
+            border-radius: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input[type="password"]:focus,
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #3b82f6; /* Blue focus ring */
+        }
+
+        /* Styling for buttons */
+        button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background-color: #3b82f6; /* Blue */
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .btn-secondary {
+            background-color: #6b7280; /* Gray */
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(107, 114, 128, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+
+        .btn-danger {
+            background-color: #ef4444; /* Red */
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+        }
+
+        .btn-outline:hover {
+            background-color: #eff6ff;
+        }
+
+        /* Message box styling */
+        .message-box {
+            background-color: #dbeafe; /* Light blue */
+            color: #1e40af; /* Dark blue text */
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #93c5fd;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .message-box.error {
+            background-color: #fee2e2; /* Light red */
+            color: #991b1b; /* Dark red text */
+            border-color: #fca5a5;
+        }
+
+        /* Table styling */
+        .vault-table th, .vault-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .vault-table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .vault-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .vault-container {
+                padding: 20px;
+            }
+            .vault-table, .vault-table thead, .vault-table tbody, .vault-table th, .vault-table td, .vault-table tr {
+                display: block;
+            }
+            .vault-table thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            .vault-table tr {
+                margin-bottom: 15px;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            .vault-table td {
+                border: none;
+                position: relative;
+                padding-left: 50%;
+                text-align: right;
+            }
+            .vault-table td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0;
+                width: 45%;
+                padding-left: 15px;
+                font-weight: 600;
+                text-align: left;
+            }
+            .vault-table td:last-child {
+                border-bottom: none;
+            }
+            .vault-table td button {
+                width: 100%;
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="vault-container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Offline Password Vault</h1>
+
+        <!-- Message Box -->
+        <div id="messageBox" class="hidden message-box">
+            <span id="messageIcon"></span>
+            <p id="messageText" class="flex-grow"></p>
+            <button onclick="hideMessage()" class="text-sm font-semibold text-blue-800 hover:text-blue-900">X</button>
+        </div>
+
+        <!-- Setup Vault Section -->
+        <div id="setupVault" class="space-y-6">
+            <h2 class="text-2xl font-semibold text-gray-700 text-center">Set Up Your Vault</h2>
+            <p class="text-gray-600 text-center">Create a strong master key to encrypt your vault. This key cannot be recovered if lost.</p>
+            <form id="setupForm" class="space-y-4">
+                <div>
+                    <label for="masterKeySetup" class="block text-sm font-medium text-gray-700 mb-1">Master Key:</label>
+                    <input type="password" id="masterKeySetup" class="block w-full rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div>
+                    <label for="confirmMasterKeySetup" class="block text-sm font-medium text-gray-700 mb-1">Confirm Master Key:</label>
+                    <input type="password" id="confirmMasterKeySetup" class="block w-full rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <button type="submit" class="btn-primary w-full">Create Vault</button>
+            </form>
+        </div>
+
+        <!-- Unlock Vault Section -->
+        <div id="unlockVault" class="hidden space-y-6">
+            <h2 class="text-2xl font-semibold text-gray-700 text-center">Unlock Your Vault</h2>
+            <p class="text-gray-600 text-center">Enter your master key to access your encrypted passwords.</p>
+            <form id="unlockForm" class="space-y-4">
+                <div>
+                    <label for="masterKeyUnlock" class="block text-sm font-medium text-gray-700 mb-1">Master Key:</label>
+                    <input type="password" id="masterKeyUnlock" class="block w-full rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <button type="submit" class="btn-primary w-full">Unlock Vault</button>
+            </form>
+        </div>
+
+        <!-- Vault Content Section -->
+        <div id="vaultContent" class="hidden space-y-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold text-gray-700">Your Passwords</h2>
+                <button id="addEntryBtn" class="btn-primary">Add New Entry</button>
+            </div>
+
+            <!-- Add/Edit Entry Form -->
+            <div id="entryFormContainer" class="hidden bg-gray-50 p-6 rounded-lg shadow-inner space-y-4">
+                <h3 id="formTitle" class="text-xl font-semibold text-gray-800">Add New Entry</h3>
+                <form id="entryForm" class="space-y-4">
+                    <input type="hidden" id="entryId">
+                    <div>
+                        <label for="entryName" class="block text-sm font-medium text-gray-700 mb-1">Service/Website:</label>
+                        <input type="text" id="entryName" class="block w-full rounded-md shadow-sm" required>
+                    </div>
+                    <div>
+                        <label for="entryUsername" class="block text-sm font-medium text-gray-700 mb-1">Username/Email:</label>
+                        <input type="text" id="entryUsername" class="block w-full rounded-md shadow-sm" required>
+                    </div>
+                    <div>
+                        <label for="entryPassword" class="block text-sm font-medium text-gray-700 mb-1">Password:</label>
+                        <div class="flex gap-2">
+                            <input type="password" id="entryPassword" class="flex-grow rounded-md shadow-sm" required>
+                            <button type="button" id="togglePasswordVisibility" class="btn-outline px-3 py-2 text-sm">Show</button>
+                            <button type="button" id="generatePasswordBtn" class="btn-outline px-3 py-2 text-sm">Generate</button>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button type="submit" class="btn-primary">Save Entry</button>
+                        <button type="button" id="cancelEntryBtn" class="btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Password List Table -->
+            <div class="overflow-x-auto rounded-lg shadow">
+                <table class="min-w-full divide-y divide-gray-200 vault-table">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">Service/Website</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username/Email</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Password</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="passwordList" class="bg-white divide-y divide-gray-200">
+                        <!-- Password entries will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Export/Delete Vault Buttons -->
+            <div class="flex justify-end gap-3 mt-8">
+                <button id="exportVaultBtn" class="btn-outline">Export Vault</button>
+                <button id="deleteVaultBtn" class="btn-danger">Delete Vault</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full space-y-4">
+            <h3 id="modalTitle" class="text-xl font-semibold text-gray-800">Confirm Action</h3>
+            <p id="modalMessage" class="text-gray-700">Are you sure you want to proceed?</p>
+            <div class="flex justify-end gap-3">
+                <button id="confirmCancelBtn" class="btn-secondary">Cancel</button>
+                <button id="confirmProceedBtn" class="btn-danger">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const setupVaultSection = document.getElementById('setupVault');
+        const unlockVaultSection = document.getElementById('unlockVault');
+        const vaultContentSection = document.getElementById('vaultContent');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const messageIcon = document.getElementById('messageIcon');
+
+        const setupForm = document.getElementById('setupForm');
+        const masterKeySetup = document.getElementById('masterKeySetup');
+        const confirmMasterKeySetup = document.getElementById('confirmMasterKeySetup');
+
+        const unlockForm = document.getElementById('unlockForm');
+        const masterKeyUnlock = document.getElementById('masterKeyUnlock');
+
+        const addEntryBtn = document.getElementById('addEntryBtn');
+        const entryFormContainer = document.getElementById('entryFormContainer');
+        const entryForm = document.getElementById('entryForm');
+        const formTitle = document.getElementById('formTitle');
+        const entryId = document.getElementById('entryId');
+        const entryName = document.getElementById('entryName');
+        const entryUsername = document.getElementById('entryUsername');
+        const entryPassword = document.getElementById('entryPassword');
+        const togglePasswordVisibility = document.getElementById('togglePasswordVisibility');
+        const generatePasswordBtn = document.getElementById('generatePasswordBtn');
+        const cancelEntryBtn = document.getElementById('cancelEntryBtn');
+        const passwordList = document.getElementById('passwordList');
+
+        const exportVaultBtn = document.getElementById('exportVaultBtn');
+        const deleteVaultBtn = document.getElementById('deleteVaultBtn');
+
+        const confirmationModal = document.getElementById('confirmationModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+        const confirmProceedBtn = document.getElementById('confirmProceedBtn');
+
+        // Vault data and encryption parameters
+        let vault = []; // In-memory representation of the decrypted vault
+        let encryptionKey = null; // CryptoKey object for encryption/decryption
+        let salt = null; // Salt used for key derivation
+        let iv = null; // Initialization Vector for AES-GCM
+
+        const VAULT_STORAGE_KEY = 'offlineVaultData';
+        const SALT_STORAGE_KEY = 'offlineVaultSalt';
+        const IV_STORAGE_KEY = 'offlineVaultIV';
+
+        /**
+         * Displays a message to the user.
+         * @param {string} text - The message text.
+         * @param {string} type - 'success' or 'error'.
+         */
+        function showMessage(text, type) {
+            messageText.textContent = text;
+            messageBox.classList.remove('hidden', 'success', 'error');
+            messageBox.classList.add(type === 'error' ? 'error' : 'success');
+            messageIcon.innerHTML = type === 'error' ? '&#x2716;' : '&#x2714;'; // Cross or Checkmark
+            messageBox.classList.remove(type === 'error' ? 'bg-blue-100' : 'bg-red-100');
+            messageBox.classList.remove(type === 'error' ? 'text-blue-800' : 'text-red-800');
+            messageBox.classList.add(type === 'error' ? 'bg-red-100' : 'bg-blue-100');
+            messageBox.classList.add(type === 'error' ? 'text-red-800' : 'text-blue-800');
+        }
+
+        /**
+         * Hides the message box.
+         */
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        /**
+         * Shows the confirmation modal.
+         * @param {string} title - Title for the modal.
+         * @param {string} message - Message for the modal.
+         * @returns {Promise<boolean>} Resolves true if confirmed, false if cancelled.
+         */
+        function showConfirmation(title, message) {
+            return new Promise((resolve) => {
+                modalTitle.textContent = title;
+                modalMessage.textContent = message;
+                confirmationModal.classList.remove('hidden');
+
+                const handleProceed = () => {
+                    confirmationModal.classList.add('hidden');
+                    confirmProceedBtn.removeEventListener('click', handleProceed);
+                    confirmCancelBtn.removeEventListener('click', handleCancel);
+                    resolve(true);
+                };
+
+                const handleCancel = () => {
+                    confirmationModal.classList.add('hidden');
+                    confirmProceedBtn.removeEventListener('click', handleProceed);
+                    confirmCancelBtn.removeEventListener('click', handleCancel);
+                    resolve(false);
+                };
+
+                confirmProceedBtn.addEventListener('click', handleProceed);
+                confirmCancelBtn.addEventListener('click', handleCancel);
+            });
+        }
+
+        /**
+         * Derives an encryption key from a master password using PBKDF2.
+         * @param {string} masterKey - The user's master password.
+         * @param {Uint8Array} salt - A unique salt for key derivation.
+         * @returns {Promise<CryptoKey>} The derived encryption key.
+         */
+        async function deriveKey(masterKey, salt) {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                enc.encode(masterKey),
+                { name: 'PBKDF2' },
+                false,
+                ['deriveBits', 'deriveKey']
+            );
+
+            return crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000, // High iteration count for security
+                    hash: 'SHA-256',
+                },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 }, // AES-256 GCM
+                true, // Exportable (for saving to IndexedDB if needed, though not directly used here)
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        /**
+         * Encrypts data using AES-GCM.
+         * @param {string} data - The data to encrypt (JSON string of vault).
+         * @param {CryptoKey} key - The encryption key.
+         * @returns {Promise<{encryptedData: Uint8Array, iv: Uint8Array}>} Encrypted data and IV.
+         */
+        async function encryptData(data, key) {
+            iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV recommended for AES-GCM
+            const enc = new TextEncoder();
+            const encryptedData = await crypto.subtle.encrypt(
+                {
+                    name: 'AES-GCM',
+                    iv: iv,
+                },
+                key,
+                enc.encode(data)
+            );
+            return { encryptedData: new Uint8Array(encryptedData), iv: iv };
+        }
+
+        /**
+         * Decrypts data using AES-GCM.
+         * @param {Uint8Array} encryptedData - The data to decrypt.
+         * @param {CryptoKey} key - The decryption key.
+         * @param {Uint8Array} iv - The Initialization Vector used during encryption.
+         * @returns {Promise<string>} The decrypted data string.
+         */
+        async function decryptData(encryptedData, key, iv) {
+            const dec = new TextDecoder();
+            const decryptedData = await crypto.subtle.decrypt(
+                {
+                    name: 'AES-GCM',
+                    iv: iv,
+                },
+                key,
+                encryptedData
+            );
+            return dec.decode(decryptedData);
+        }
+
+        /**
+         * Converts a Uint8Array to a Base64 string.
+         * @param {Uint8Array} buffer
+         * @returns {string} Base64 string.
+         */
+        function arrayBufferToBase64(buffer) {
+            return btoa(String.fromCharCode.apply(null, buffer));
+        }
+
+        /**
+         * Converts a Base64 string to a Uint8Array.
+         * @param {string} base64
+         * @returns {Uint8Array} Uint8Array.
+         */
+        function base64ToArrayBuffer(base64) {
+            const binary_string = atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        /**
+         * Saves the encrypted vault data, salt, and IV to localStorage.
+         */
+        async function saveVault() {
+            try {
+                const { encryptedData, iv: currentIv } = await encryptData(JSON.stringify(vault), encryptionKey);
+                localStorage.setItem(VAULT_STORAGE_KEY, arrayBufferToBase64(encryptedData));
+                localStorage.setItem(SALT_STORAGE_KEY, arrayBufferToBase64(salt));
+                localStorage.setItem(IV_STORAGE_KEY, arrayBufferToBase64(currentIv));
+                renderPasswordList(); // Re-render to reflect changes
+                showMessage('Vault saved successfully!', 'success');
+            } catch (error) {
+                console.error('Error saving vault:', error);
+                showMessage('Failed to save vault. Data might be corrupted or key is invalid.', 'error');
+            }
+        }
+
+        /**
+         * Loads and decrypts the vault data from localStorage.
+         * @param {string} masterKey - The master key to decrypt the vault.
+         * @returns {Promise<boolean>} True if successful, false otherwise.
+         */
+        async function loadVault(masterKey) {
+            hideMessage();
+            const storedEncryptedData = localStorage.getItem(VAULT_STORAGE_KEY);
+            const storedSalt = localStorage.getItem(SALT_STORAGE_KEY);
+            const storedIv = localStorage.getItem(IV_STORAGE_KEY);
+
+            if (!storedEncryptedData || !storedSalt || !storedIv) {
+                showMessage('No vault found. Please set up a new vault.', 'error');
+                return false;
+            }
+
+            try {
+                salt = base64ToArrayBuffer(storedSalt);
+                iv = base64ToArrayBuffer(storedIv);
+                encryptionKey = await deriveKey(masterKey, salt);
+                const decryptedData = await decryptData(base64ToArrayBuffer(storedEncryptedData), encryptionKey, iv);
+                vault = JSON.parse(decryptedData);
+                showMessage('Vault unlocked successfully!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Vault decryption failed:', error);
+                showMessage('Incorrect master key or corrupted vault data. Please try again.', 'error');
+                return false;
+            }
+        }
+
+        /**
+         * Renders the list of passwords in the table.
+         */
+        function renderPasswordList() {
+            passwordList.innerHTML = ''; // Clear existing entries
+
+            if (vault.length === 0) {
+                passwordList.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">No passwords added yet.</td></tr>`;
+                return;
+            }
+
+            vault.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td data-label="Service/Website" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 rounded-bl-lg">${entry.name}</td>
+                    <td data-label="Username/Email" class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${entry.username}</td>
+                    <td data-label="Password" class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <span id="password-${entry.id}" class="password-hidden">********</span>
+                        <button type="button" class="text-blue-600 hover:text-blue-900 ml-2 text-xs" onclick="togglePassword('${entry.id}', this)">Show</button>
+                    </td>
+                    <td data-label="Actions" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium rounded-br-lg">
+                        <button class="text-indigo-600 hover:text-indigo-900 mr-3" onclick="editEntry('${entry.id}')">Edit</button>
+                        <button class="text-red-600 hover:text-red-900 mr-3" onclick="copyPassword('${entry.id}')">Copy</button>
+                        <button class="text-red-600 hover:text-red-900" onclick="deleteEntry('${entry.id}')">Delete</button>
+                    </td>
+                `;
+                passwordList.appendChild(row);
+            });
+        }
+
+        /**
+         * Toggles the visibility of a password.
+         * @param {string} id - The ID of the password entry.
+         * @param {HTMLElement} button - The button element that triggered the toggle.
+         */
+        function togglePassword(id, button) {
+            const passwordSpan = document.getElementById(`password-${id}`);
+            const entry = vault.find(e => e.id === id);
+
+            if (passwordSpan.classList.contains('password-hidden')) {
+                passwordSpan.textContent = entry.password;
+                passwordSpan.classList.remove('password-hidden');
+                button.textContent = 'Hide';
+            } else {
+                passwordSpan.textContent = '********';
+                passwordSpan.classList.add('password-hidden');
+                button.textContent = 'Show';
+            }
+        }
+
+        /**
+         * Copies a password to the clipboard.
+         * @param {string} id - The ID of the password entry.
+         */
+        function copyPassword(id) {
+            const entry = vault.find(e => e.id === id);
+            if (entry) {
+                // Use document.execCommand for better iframe compatibility
+                const textarea = document.createElement('textarea');
+                textarea.value = entry.password;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showMessage('Password copied to clipboard!', 'success');
+                } catch (err) {
+                    console.error('Failed to copy password: ', err);
+                    showMessage('Failed to copy password. Please copy manually.', 'error');
+                }
+                document.body.removeChild(textarea);
+            }
+        }
+
+        /**
+         * Sets up the vault with a new master key.
+         * @param {Event} e - The form submission event.
+         */
+        setupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessage();
+
+            const mk1 = masterKeySetup.value;
+            const mk2 = confirmMasterKeySetup.value;
+
+            if (mk1 !== mk2) {
+                showMessage('Master keys do not match!', 'error');
+                return;
+            }
+            if (mk1.length < 8) {
+                showMessage('Master key must be at least 8 characters long.', 'error');
+                return;
+            }
+
+            const confirmed = await showConfirmation('Create Vault?', 'This will create a new vault and overwrite any existing one. Are you sure?');
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                salt = crypto.getRandomValues(new Uint8Array(16)); // 128-bit salt
+                encryptionKey = await deriveKey(mk1, salt);
+                vault = []; // Initialize an empty vault
+                await saveVault(); // Save the empty, encrypted vault
+
+                masterKeySetup.value = '';
+                confirmMasterKeySetup.value = '';
+                setupVaultSection.classList.add('hidden');
+                vaultContentSection.classList.remove('hidden');
+                showMessage('Vault created and unlocked successfully!', 'success');
+                renderPasswordList();
+            } catch (error) {
+                console.error('Error setting up vault:', error);
+                showMessage('Failed to set up vault. Please try again.', 'error');
+            }
+        });
+
+        /**
+         * Unlocks the vault with the provided master key.
+         * @param {Event} e - The form submission event.
+         */
+        unlockForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessage();
+
+            const mk = masterKeyUnlock.value;
+            const success = await loadVault(mk);
+
+            if (success) {
+                unlockVaultSection.classList.add('hidden');
+                vaultContentSection.classList.remove('hidden');
+                renderPasswordList();
+            }
+            masterKeyUnlock.value = ''; // Clear master key input
+        });
+
+        /**
+         * Shows the add/edit entry form.
+         * @param {object} [entry] - Optional entry object for editing.
+         */
+        function showEntryForm(entry = null) {
+            entryFormContainer.classList.remove('hidden');
+            if (entry) {
+                formTitle.textContent = 'Edit Entry';
+                entryId.value = entry.id;
+                entryName.value = entry.name;
+                entryUsername.value = entry.username;
+                entryPassword.value = entry.password;
+                entryPassword.type = 'text'; // Show password when editing
+                togglePasswordVisibility.textContent = 'Hide';
+            } else {
+                formTitle.textContent = 'Add New Entry';
+                entryId.value = '';
+                entryName.value = '';
+                entryUsername.value = '';
+                entryPassword.value = '';
+                entryPassword.type = 'password'; // Hide password by default for new entry
+                togglePasswordVisibility.textContent = 'Show';
+            }
+            entryName.focus();
+        }
+
+        /**
+         * Hides the add/edit entry form.
+         */
+        function hideEntryForm() {
+            entryFormContainer.classList.add('hidden');
+            entryForm.reset(); // Clear form fields
+        }
+
+        addEntryBtn.addEventListener('click', () => showEntryForm());
+        cancelEntryBtn.addEventListener('click', () => hideEntryForm());
+
+        /**
+         * Handles submission of the add/edit entry form.
+         * @param {Event} e - The form submission event.
+         */
+        entryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessage();
+
+            const id = entryId.value;
+            const name = entryName.value.trim();
+            const username = entryUsername.value.trim();
+            const password = entryPassword.value;
+
+            if (!name || !username || !password) {
+                showMessage('All fields are required!', 'error');
+                return;
+            }
+
+            if (id) {
+                // Edit existing entry
+                const index = vault.findIndex(entry => entry.id === id);
+                if (index !== -1) {
+                    vault[index] = { id, name, username, password };
+                    showMessage('Entry updated successfully!', 'success');
+                }
+            } else {
+                // Add new entry
+                const newId = crypto.randomUUID(); // Generate a unique ID
+                vault.push({ id: newId, name, username, password });
+                showMessage('Entry added successfully!', 'success');
+            }
+
+            await saveVault();
+            hideEntryForm();
+        });
+
+        /**
+         * Populates the form for editing an existing entry.
+         * @param {string} id - The ID of the entry to edit.
+         */
+        function editEntry(id) {
+            const entry = vault.find(e => e.id === id);
+            if (entry) {
+                showEntryForm(entry);
+            }
+        }
+
+        /**
+         * Deletes a password entry.
+         * @param {string} id - The ID of the entry to delete.
+         */
+        async function deleteEntry(id) {
+            const confirmed = await showConfirmation('Delete Entry?', 'Are you sure you want to delete this password entry? This action cannot be undone.');
+            if (!confirmed) {
+                return;
+            }
+
+            vault = vault.filter(entry => entry.id !== id);
+            await saveVault();
+            showMessage('Entry deleted successfully!', 'success');
+        }
+
+        /**
+         * Toggles password visibility in the add/edit form.
+         */
+        togglePasswordVisibility.addEventListener('click', () => {
+            if (entryPassword.type === 'password') {
+                entryPassword.type = 'text';
+                togglePasswordVisibility.textContent = 'Hide';
+            } else {
+                entryPassword.type = 'password';
+                togglePasswordVisibility.textContent = 'Show';
+            }
+        });
+
+        /**
+         * Generates a random strong password and populates the password field.
+         */
+        generatePasswordBtn.addEventListener('click', () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]\:;?><,./-=';
+            let password = '';
+            const passwordLength = 16; // Recommended length
+
+            for (let i = 0; i < passwordLength; i++) {
+                const randomIndex = Math.floor(Math.random() * chars.length);
+                password += chars[randomIndex];
+            }
+            entryPassword.value = password;
+            entryPassword.type = 'text'; // Show generated password
+            togglePasswordVisibility.textContent = 'Hide';
+            showMessage('Password generated!', 'success');
+        });
+
+        /**
+         * Exports the vault data as a JSON file.
+         */
+        exportVaultBtn.addEventListener('click', async () => {
+            const confirmed = await showConfirmation('Export Vault?', 'This will export your decrypted vault data. Keep this file secure as it contains all your passwords in plain text. Do you want to proceed?');
+            if (!confirmed) {
+                return;
+            }
+
+            if (vault.length === 0) {
+                showMessage('Vault is empty. Nothing to export.', 'error');
+                return;
+            }
+
+            const dataStr = JSON.stringify(vault, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'password_vault_export.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showMessage('Vault exported successfully!', 'success');
+        });
+
+        /**
+         * Deletes the entire vault from localStorage.
+         */
+        deleteVaultBtn.addEventListener('click', async () => {
+            const confirmed = await showConfirmation('Delete Vault?', 'Are you absolutely sure you want to delete your entire vault? This action is irreversible and all your passwords will be lost!');
+            if (!confirmed) {
+                return;
+            }
+
+            localStorage.removeItem(VAULT_STORAGE_KEY);
+            localStorage.removeItem(SALT_STORAGE_KEY);
+            localStorage.removeItem(IV_STORAGE_KEY);
+            vault = [];
+            encryptionKey = null;
+            salt = null;
+            iv = null;
+            renderPasswordList(); // Clear the displayed list
+            vaultContentSection.classList.add('hidden');
+            setupVaultSection.classList.remove('hidden'); // Go back to setup screen
+            showMessage('Vault deleted successfully! All data removed from this browser.', 'success');
+        });
+
+        /**
+         * Initializes the application based on whether a vault exists.
+         */
+        function initializeApp() {
+            if (localStorage.getItem(VAULT_STORAGE_KEY) && localStorage.getItem(SALT_STORAGE_KEY) && localStorage.getItem(IV_STORAGE_KEY)) {
+                setupVaultSection.classList.add('hidden');
+                unlockVaultSection.classList.remove('hidden');
+            } else {
+                setupVaultSection.classList.remove('hidden');
+                unlockVaultSection.classList.add('hidden');
+            }
+        }
+
+        // Initialize the app when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
